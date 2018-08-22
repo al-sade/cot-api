@@ -18,7 +18,7 @@
             padding-right: 15px;
         }
 
-        .el-table__empty-text {
+        .el-table__empty-text, .el-select-dropdown__empty {
             display: none;
         }
 
@@ -75,7 +75,7 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item>
-                    <el-button @click="add('device')" :disabled="_isValidName">Submit</el-button>
+                    <el-button @click="add" :disabled="_isValidName">Submit</el-button>
                     <el-button @click="visible = showOverlay = false">Cancel</el-button>
                 </el-form-item>
 
@@ -104,7 +104,7 @@
                 <el-table-column label="Actions" width="300">
                     <template slot-scope="scope">
                         <el-button @click="editPrepare(scope)">Edit</el-button>
-                        <el-button @click="delet('device', scope.row.id)">Delete</el-button>
+                        <el-button @click="delet(scope.row.id)">Delete</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -124,7 +124,7 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item>
-                    <el-button @click="update('device')" :disabled="_isValidName">Submit</el-button>
+                    <el-button @click="update()" :disabled="_isValidName">Submit</el-button>
                     <el-button @click="visible2 = showOverlay = false">Cancel</el-button>
                 </el-form-item>
 
@@ -152,7 +152,7 @@
                 <el-input type="textarea" :rows="2" placeholder="content" v-model="propertyForm.content">
                 </el-input>
                 <el-form-item>
-                    <el-button @click="add('property')" :disabled="_isValidProperty">Submit</el-button>
+                    <el-button @click="add" :disabled="_isValidProperty">Submit</el-button>
                     <el-button @click="visible = showOverlay = false">Cancel</el-button>
                 </el-form-item>
 
@@ -175,7 +175,7 @@
                 <el-table-column label="Actions" width="300">
                     <template slot-scope="scope">
                         <el-button @click="editPropertyPrepare(scope)">Edit</el-button>
-                        <el-button @click="delet('property', scope.row.id)">Delete</el-button>
+                        <el-button @click="delet(scope.row.id)">Delete</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -199,7 +199,7 @@
                     </el-input>
                 </el-form-item>
                 <el-form-item>
-                    <el-button @click="update('device')" :disabled="_isValidProperty">Submit</el-button>
+                    <el-button @click="update" :disabled="_isValidProperty">Submit</el-button>
                     <el-button @click="visible2 = showOverlay = false">Cancel</el-button>
                 </el-form-item>
 
@@ -269,57 +269,59 @@
                     console.log(err);
                 });
             },
-            // getDevice(id) {
-            //     this.loading = true;
-            //     this.$http.get(`/api/device/${id}/`).then((response) => {
-            //         this.currentDevice = response.data;
-            //         this.loading = false;
-            //     }).catch((err) => {
-            //         this.loading = false;
-            //         console.log(err);
-            //     })
-            // },
-            add(type) {
+            add() {
                 this.visible = true;
-                let form = type === 'device' ? this.form : this.propertyForm;
-                this.$http.post(`/api/${type}/create/`, form, {
+                let form = this.activeName === 'device' ? this.form : this.propertyForm;
+
+                this.$http.post(`/api/${this.activeName}/create/`, form, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.showOverlay = false;
-                    this.getAll(type);
+                    this.getAll(this.activeName);
                     this.visible = false;
+                    this.emptyForm();
                 }).catch((err) => {
                     this.showOverlay = false;
                     this.visible = false;
+                    this.emptyForm();
                     console.log(err);
                 })
             },
-            update(type) {
-                this.$http.put(`/api/${type}/update/${this.currentDevice.id}/`, this.form, {
+            update() {
+                if (this.activeName === 'device') {
+                    var id = this.currentDevice.id;
+                    var form = this.form;
+                } else {
+                    var id = this.currentProperty.id;
+                    var form = this.propertyForm;
+                }
+
+                this.$http.put(`/api/${this.activeName}/update/${id}/`, form, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.showOverlay = this.visible2 = false;
-                    this.getAll(type);
+                    this.getAll(this.activeName);
+                    this.emptyForm();
                 }).catch((err) => {
                     this.showOverlay = this.visible2 = false;
+                    this.emptyForm();
                     console.log(err);
                 })
             },
-            delet(type, id) {
+            delet(id) {
                 this.loading = true;
-                this.$http.delete(`/api/${type}/delete/${id}/`, {
+                this.$http.delete(`/api/${this.activeName}/delete/${id}/`, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.loading = false;
-                    this.getAll(type);
+                    this.getAll(this.activeName);
                 }).catch((err) => {
                     this.loading = false;
                     console.log(err);
                 })
             },
             editPrepare(scope) {
-                this.visible2 = true;
-                this.showOverlay = true;
+                this.visible2 = this.showOverlay = true;
                 this.currentDevice = scope.row;
                 this.form = {
                     name: scope.row.name,
@@ -327,8 +329,7 @@
                 }
             },
             editPropertyPrepare(scope) {
-                this.visible2 = true;
-                this.showOverlay = true;
+                this.visible2 = this.showOverlay = true;
                 this.currentProperty = scope.row;
                 this.propertyForm = {
                     name: scope.row.name,
@@ -345,8 +346,21 @@
                 let pr = this.properties.filter(x => x.id === propertyId);
 
                 return pr.length ? pr[0].content : '';
+            },
+            emptyForm() {
+                if (this.activeName === 'device') {
+                    this.form = {
+                        name: '',
+                        properties: []
+                    }
+                } else if (this.activeName === 'property') {
+                    this.propertyForm = {
+                        name: '',
+                        type: '',
+                        content: ''
+                    }
+                }
             }
-
         },
         computed: {
             _isValidName() {
