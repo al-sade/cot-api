@@ -273,7 +273,7 @@
                 this.visible = true;
                 let form = this.activeName === 'device' ? this.form : this.propertyForm;
 
-                this.$http.post(`/api/${this.activeName}/create/`, form, {
+                this.$http.post(`/api/${this.activeName}/`, form, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.showOverlay = false;
@@ -296,7 +296,7 @@
                     var form = this.propertyForm;
                 }
 
-                this.$http.put(`/api/${this.activeName}/update/${id}/`, form, {
+                this.$http.put(`/api/${this.activeName}/${id}/`, form, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.showOverlay = this.visible2 = false;
@@ -310,7 +310,7 @@
             },
             delet(id) {
                 this.loading = true;
-                this.$http.delete(`/api/${this.activeName}/delete/${id}/`, {
+                this.$http.delete(`/api/${this.activeName}/${id}/`, {
                     headers: {'X-CSRFToken': csrf_token},
                 }).then((response) => {
                     this.loading = false;

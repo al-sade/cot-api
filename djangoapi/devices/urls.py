@@ -1,16 +1,7 @@
-from django.urls import path
 from . import views
+from rest_framework.routers import DefaultRouter
 
-urlpatterns = [
-    path('device/create/', views.DeviceCreate.as_view()),
-    path('device/update/<int:pk>/', views.DeviceUpdate.as_view()),
-    path('device/delete/<int:pk>/', views.DeviceDelete.as_view()),
-    path('device/', views.DeviceList.as_view()),
-    path('device/<int:pk>/', views.DeviceDetail.as_view()),
-
-    path('property/create/', views.PropertyCreate.as_view()),
-    path('property/update/<int:pk>/', views.PropertyUpdate.as_view()),
-    path('property/delete/<int:pk>/', views.PropertyDelete.as_view()),
-    path('property/', views.PropertyList.as_view()),
-    path('property/<int:pk>/', views.PropertyDetail.as_view()),
-]
+router = DefaultRouter()
+router.register(r'device', views.DeviceViewSet, base_name='device')
+router.register(r'property', views.PropertyViewSet, base_name='property')
+urlpatterns = router.urls
