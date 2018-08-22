@@ -1,82 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
- <head>
- <meta charset="utf-8">
- <title>Vue-js | Django | Crud App</title>
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head>
+    <meta charset="utf-8">
+    <title>COT Devices API</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-      body{
-          font-family: sans-serif;
-      }
-      #overlay {
-        position: fixed; /* Sit on top of the page content */
-        width: 100%; /* Full width (cover the whole page) */
-        height: 100%; /* Full height (cover the whole page) */
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5); /* Black background with opacity */
-        z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
-        cursor: pointer; /* Add a pointer on hover */
-    }
-  </style>
-  <!-- import CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        .cell {
+            display: inline-flex;
+        }
+
+        p.el-tooltip.item {
+            padding-right: 15px;
+        }
+
+        .el-table__empty-text {
+            display: none;
+        }
+
+        #edit {
+            z-index: 3;
+            position: fixed;
+            background: #fff;
+            padding: 25px;
+            border-radius: 5px;
+            left: 50%;
+            top: 25%;
+        }
+
+        #overlay {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2;
+            cursor: pointer;
+        }
+    </style>
+    <!-- import CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
 
 </head>
 <body>
 <div id="app">
-    <h1>List of Devices</h1>
+    <div id="overlay" v-show="showOverlay"></div>
 
-    <div id="overlay" v-show="visible"></div>
-        <el-popover  v-model="visible" ref="popover" placement="bottom-start" title="Add Device" trigger="click" width="300">
-            <el-form :model="newDevice" status-icon ref="form" class="pop-form">
+    <el-tabs v-model="activeName" @tab-click="">
+        <el-tab-pane label="Devices" name="device">Devices</el-tab-pane>
+        <el-tab-pane label="Properties" name="property">Properties</el-tab-pane>
+    </el-tabs>
+
+    <div v-if="activeName === 'device'">
+
+        <!--Add Device Popup-->
+
+        <el-popover v-model="visible" ref="popover" placement="bottom-start" title="Add Device" trigger="click"
+                    width="300">
+            <el-form :model="form" status-icon ref="form" class="pop-form">
                 <el-form-item>
-                    <el-input placeholder="device name" v-model="newDevice.name"></el-input>
+                    <el-input placeholder="device name" v-model="form.name"></el-input>
                 </el-form-item>
-                  <el-form-item>
-                <el-select v-model="newDevice.properties" placeholder="select properties" multiple>
-                  <el-option v-for="property in properties" :label="property.name" :value="property.id"></el-option>
-                </el-select>
-              </el-form-item>
                 <el-form-item>
-                    <el-button @click="addDevice" :disabled="_isValidName">Submit</el-button>
-                    <el-button @click="visible = false">Cancel</el-button>
+                    <el-select v-model="form.properties" placeholder="select properties" multiple>
+                        <el-option v-for="property in properties" :label="property.name"
+                                   :value="property.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button @click="add('device')" :disabled="_isValidName">Submit</el-button>
+                    <el-button @click="visible = showOverlay = false">Cancel</el-button>
                 </el-form-item>
 
             </el-form>
         </el-popover>
-        <el-button v-popover:popover2 @click="visible = true">Add Device</el-button>
+        <el-button @click="visible = showOverlay = true;">Add Device</el-button>
 
+        <!--End Add Device Popup-->
 
         <div class="el-row">
-            <el-table
-              :data="devices"
-              style="width: 100%">
-              <el-table-column prop="id" label="#">
-              </el-table-column>
-              <el-table-column prop="name" label="Name">
-              </el-table-column>
-                <el-table-column prop="properties" label="Properties">
-              </el-table-column>
-              <el-table-column label="Actions">
-                  <template slot-scope="scope">
-                      <el-button>Edit</el-button>
-                      <el-button @click="deleteDevice(scope.row.id)">Delete</el-button>
-                  </template>
-              </el-table-column>
-          </el-table>
+            <el-table :data="devices" key="dTable" style="width: 100%">
+                <el-table-column prop="id" label="#" width="75">
+                </el-table-column>
+                <el-table-column prop="name" label="Name" width="200">
+                </el-table-column>
+                <el-table-column label="Properties">
+                    <template slot-scope="scope">
+                        <el-tooltip v-for="id in scope.row.properties "
+                                    class="item" effect="dark"
+                                    :content="prContent(id)"
+                                    placement="top-start">
+                            <p>${ prDetails(id) }</p>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column label="Actions" width="300">
+                    <template slot-scope="scope">
+                        <el-button @click="editPrepare(scope)">Edit</el-button>
+                        <el-button @click="delet('device', scope.row.id)">Delete</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
         </div>
-      <div class="loading" v-if="loading===true">Loading&#8230;</div>
+
+        <!--Edit Device Popup-->
+
+        <div id="edit" v-if="visible2">
+            <el-form :model="form" status-icon ref="form" class="pop-form">
+                <el-form-item>
+                    <el-input placeholder="device name" v-model="form.name"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-select v-model="form.properties" placeholder="select properties" multiple>
+                        <el-option v-for="property in properties" :label="property.name"
+                                   :value="property.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button @click="update('device')" :disabled="_isValidName">Submit</el-button>
+                    <el-button @click="visible2 = showOverlay = false">Cancel</el-button>
+                </el-form-item>
+
+            </el-form>
+        </div>
+
+        <!-- End Edit Device Popup-->
     </div>
 
- <!-- vue.js files -->
- <script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
-  <!-- import JavaScript -->
-  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <div v-if="activeName === 'property'">
+        <!--Add Property Popup-->
+
+        <el-popover v-model="visible" ref="popover" placement="bottom-start" title="Add Property" trigger="click"
+                    width="300">
+            <el-form :model="propertyForm" status-icon ref="form" class="pop-form">
+                <el-form-item>
+                    <el-input placeholder="property name" v-model="propertyForm.name"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-select v-model="propertyForm.type" placeholder="select type">
+                        <el-option v-for="type in ['JSON', 'PLAINTEXT', 'BINARY']" :label="type" :value="type">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-input type="textarea" :rows="2" placeholder="content" v-model="propertyForm.content">
+                </el-input>
+                <el-form-item>
+                    <el-button @click="add('property')" :disabled="_isValidProperty">Submit</el-button>
+                    <el-button @click="visible = showOverlay = false">Cancel</el-button>
+                </el-form-item>
+
+            </el-form>
+        </el-popover>
+        <el-button @click="visible = showOverlay = true;">Add Property</el-button>
+
+        <!--End Add Property Popup-->
+
+        <div class="el-row">
+            <el-table :data="properties" key="pTable" style="width: 100%">
+                <el-table-column prop="id" label="#" width="75">
+                </el-table-column>
+                <el-table-column prop="name" label="Name" width="200">
+                </el-table-column>
+                <el-table-column prop="type" label="Type" width="200">
+                </el-table-column>
+                <el-table-column prop="content" label="Content" width="200">
+                </el-table-column>
+                <el-table-column label="Actions" width="300">
+                    <template slot-scope="scope">
+                        <el-button @click="editPropertyPrepare(scope)">Edit</el-button>
+                        <el-button @click="delet('property', scope.row.id)">Delete</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+
+        <!--Edit Property Popup-->
+
+        <div id="edit" v-if="visible2">
+            <el-form :model="propertyForm" status-icon ref="form" class="pop-form">
+                <el-form-item>
+                    <el-input placeholder="property name" v-model="propertyForm.name"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-select v-model="propertyForm.type" placeholder="select properties">
+                        <el-option v-for="type in ['JSON', 'PLAINTEXT', 'BINARY']" :label="type"
+                                   :value="type"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-input type="textarea" :rows="2" placeholder="content" v-model="propertyForm.content">
+                    </el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button @click="update('device')" :disabled="_isValidProperty">Submit</el-button>
+                    <el-button @click="visible2 = showOverlay = false">Cancel</el-button>
+                </el-form-item>
+
+            </el-form>
+        </div>
+
+        <!-- End Edit Property Popup-->
+    </div>
+</div>
+
+<!-- vue.js files -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
+<!-- import JavaScript -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
 
 <script>
     function getCookie(name) {
@@ -89,116 +227,138 @@
 
     new Vue({
         el: '#app',
-        delimiters: ['${','}'],
+        delimiters: ['${', '}'],
         data: {
-        devices: [],
-        visible: false,
-        show: false,
-        loading: false,
-        currentDevice: {},
-        message: null,
-        properties: [],
-        newDevice: {
-            name: '',
-            properties: []
-        }
-    },
-        mounted () {
-        this.initData();
-    },
-    methods: {
-     initData: function() {
-        this.getDevices();
-        this.getProperties();
-     },
-    getDevices() {
-     this.loading = true;
-      this.$http.get('/api/device/')
-          .then((response) => {
-            this.devices = response.data;
-            this.loading = false;
-          })
-          .catch((err) => {
-           this.loading = false;
-           console.log(err);
-          });
-    },
-        getProperties(){
-               this.$http.get('/api/property/')
-          .then((response) => {
-            this.properties = response.data;
-            this.loading = false;
-          })
-          .catch((err) => {
-           this.loading = false;
-           console.log(err);
-          })
+            devices: [],
+            activeName: 'device',
+            visible: false,
+            visible2: false,
+            showOverlay: false,
+            currentDevice: {},
+            currentProperty: {},
+            properties: [],
+            form: {
+                name: '',
+                properties: []
+            },
+            propertyForm: {
+                name: '',
+                type: '',
+                content: ''
+            },
         },
-     getDevice: function(id) {
-      this.loading = true;
-      this.$http.get(`/api/device/${id}/`)
-          .then((response) => {
-            this.currentDevice = response.data;
-            this.loading = false;
-          })
-          .catch((err) => {
-            this.loading = false;
-            console.log(err);
-          })
-     },
-     addDevice () {
-      this.loading = true;
-      this.visible = true;
-      this.$http.post('/api/device/create/', this.newDevice, {
-          headers: {'X-CSRFToken':csrf_token},
-            })
-          .then((response) => {
-            this.loading = false;
-            this.getDevices();
-            this.visible = false;
-          })
-          .catch((err) => {
-            this.loading = false;
-            this.visible = false;
-            console.log(err);
-          })
-     },
-     updateDevice () {
-      this.loading = true;
-      this.$http.put(`/api/device/${this.currentDevice.device_id}/`,     this.currentDevice)
-          .then((response) => {
-            this.loading = false;
-            this.currentDevice = response.data;
-            this.getDevices();
-          })
-          .catch((err) => {
-            this.loading = false;
-            console.log(err);
-          })
-     },
-     deleteDevice (id) {
-      this.loading = true;
-      this.$http.delete(`/api/device/delete/${id}/` , {
-          headers: {'X-CSRFToken':csrf_token},
-            })
-          .then((response) => {
-            this.loading = false;
-            this.getDevices();
-          })
-          .catch((err) => {
-            this.loading = false;
-            console.log(err);
-          })
-     }
+        mounted() {
+            this.initData();
+        },
+        methods: {
+            initData: function () {
+                this.getAll('device');
+                this.getAll('property');
+            },
+            getAll(type) {
+                this.loading = true;
+                this.$http.get(`/api/${type}/`).then((response) => {
+                    if (type === 'device') {
+                        this.devices = response.data;
+                    } else {
+                        this.properties = response.data;
+                    }
+                    this.loading = false;
+                }).catch((err) => {
+                    this.loading = false;
+                    console.log(err);
+                });
+            },
+            // getDevice(id) {
+            //     this.loading = true;
+            //     this.$http.get(`/api/device/${id}/`).then((response) => {
+            //         this.currentDevice = response.data;
+            //         this.loading = false;
+            //     }).catch((err) => {
+            //         this.loading = false;
+            //         console.log(err);
+            //     })
+            // },
+            add(type) {
+                this.visible = true;
+                let form = type === 'device' ? this.form : this.propertyForm;
+                this.$http.post(`/api/${type}/create/`, form, {
+                    headers: {'X-CSRFToken': csrf_token},
+                }).then((response) => {
+                    this.showOverlay = false;
+                    this.getAll(type);
+                    this.visible = false;
+                }).catch((err) => {
+                    this.showOverlay = false;
+                    this.visible = false;
+                    console.log(err);
+                })
+            },
+            update(type) {
+                this.$http.put(`/api/${type}/update/${this.currentDevice.id}/`, this.form, {
+                    headers: {'X-CSRFToken': csrf_token},
+                }).then((response) => {
+                    this.showOverlay = this.visible2 = false;
+                    this.getAll(type);
+                }).catch((err) => {
+                    this.showOverlay = this.visible2 = false;
+                    console.log(err);
+                })
+            },
+            delet(type, id) {
+                this.loading = true;
+                this.$http.delete(`/api/${type}/delete/${id}/`, {
+                    headers: {'X-CSRFToken': csrf_token},
+                }).then((response) => {
+                    this.loading = false;
+                    this.getAll(type);
+                }).catch((err) => {
+                    this.loading = false;
+                    console.log(err);
+                })
+            },
+            editPrepare(scope) {
+                this.visible2 = true;
+                this.showOverlay = true;
+                this.currentDevice = scope.row;
+                this.form = {
+                    name: scope.row.name,
+                    properties: scope.row.properties
+                }
+            },
+            editPropertyPrepare(scope) {
+                this.visible2 = true;
+                this.showOverlay = true;
+                this.currentProperty = scope.row;
+                this.propertyForm = {
+                    name: scope.row.name,
+                    type: scope.row.type,
+                    content: scope.row.content
+                }
+            },
+            prDetails(propertyId) {
+                let pr = this.properties.filter(x => x.id === propertyId);
 
- }
-    ,
-    computed: {
-            _isValidName() {
-                return this.newDevice.name.length <= 0;
+                return pr.length ? pr[0].name : '';
+            },
+            prContent(propertyId) {
+                let pr = this.properties.filter(x => x.id === propertyId);
+
+                return pr.length ? pr[0].content : '';
             }
-    }});
 
- </script>
+        },
+        computed: {
+            _isValidName() {
+                return this.form.name.length <= 0;
+            },
+            _isValidProperty() {
+                let form = this.propertyForm;
+                return form.name.length <= 0 || form.type.length <= 0 || form.content.length <= 0;
+            }
+        }
+    });
+
+</script>
 </body>
 </html>
